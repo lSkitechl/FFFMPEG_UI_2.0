@@ -111,11 +111,14 @@
                     <ComboBoxItem Content="Video Codec" IsSelected="True"/>
                     <ComboBoxItem Content="h264"/>
                     <ComboBoxItem Content="h265"/>
+                    <ComboBoxItem Content="AV1"/>
+                    <ComboBoxItem Content="VP9"/>
                 </ComboBox>
                 <ComboBox Style="{StaticResource FlatComboBoxStyle}" MaxWidth="200">
                     <ComboBoxItem Content="Audio Codec" IsSelected="True"/>
-                    <ComboBoxItem Content="aac"/>
-                    <ComboBoxItem Content="mp3"/>
+                    <ComboBoxItem Content="AAC"/>
+                    <ComboBoxItem Content="MP3"/>
+                    <ComboBoxItem Content="Opus"/>
                 </ComboBox>
             </UniformGrid>
         </GroupBox>
@@ -125,8 +128,9 @@
                 <Button DockPanel.Dock="Left"
                         MinWidth="220"
                         Style="{StaticResource FlatButtonStyle}"
-                        Content="{Binding InputFileButtonText}"/>
-                <TextBox Text="{Binding InputFilePath, UpdateSourceTrigger=PropertyChanged}"
+                        Content="{Binding InputFileButtonText}"
+                        Command="{Binding SelectInputFileCommand}"/>
+                <TextBox Text="{Binding InputFileDisplayPath, Mode=OneWay}"
                          local:TextBoxHelper.Placeholder="Input file path" IsReadOnly="True"/>
             </DockPanel>
         </GroupBox>
@@ -136,10 +140,11 @@
                 <Button DockPanel.Dock="Left"
                         MinWidth="220"
                         Style="{StaticResource FlatButtonStyle}"
-                        Content="{Binding OutputPathButtonText}"/>
+                        Content="{Binding OutputPathButtonText}"
+                        Command="{Binding SelectOutputDirectoryCommand}"/>
                 <TextBox DockPanel.Dock="Left"
                          Width="280" IsReadOnly="True"
-                         Text="{Binding OutputDirectoryPath, UpdateSourceTrigger=PropertyChanged}"
+                         Text="{Binding OutputDirectoryDisplayPath, Mode=OneWay}"
                          local:TextBoxHelper.Placeholder="Output directory path"/>
                 <TextBox Text="{Binding OutputFileName, UpdateSourceTrigger=PropertyChanged}"
                          local:TextBoxHelper.Placeholder="Output file name"/>

@@ -1,6 +1,7 @@
 using System.Windows;
 using FFMPEG.Application.Abstractions;
 using FFMPEG.Application.Services;
+using FFFMPEG_UI_2._0.Services;
 using FFFMPEG_UI_2._0.ViewModels;
 
 namespace FFFMPEG_UI_2._0;
@@ -12,7 +13,8 @@ public partial class App : Application
         base.OnStartup(e);
 
         IFfmpegCommandPreviewService commandPreviewService = new FfmpegCommandPreviewService();
-        var mainWindowViewModel = new MainWindowViewModel(commandPreviewService);
+        IFileDialogService fileDialogService = new WindowsFileDialogService();
+        var mainWindowViewModel = new MainWindowViewModel(commandPreviewService, fileDialogService);
 
         var mainWindow = new MainWindow(mainWindowViewModel);
         mainWindow.Show();

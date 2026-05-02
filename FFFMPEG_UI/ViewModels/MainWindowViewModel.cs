@@ -1,23 +1,31 @@
+using System.IO;
 using System.Windows.Input;
 using FFMPEG.Application.Abstractions;
 using FFMPEG.Core.Commands;
 using FFFMPEG_UI_2._0.Commands;
+using FFFMPEG_UI_2._0.Services;
 
 namespace FFFMPEG_UI_2._0.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
     private readonly IFfmpegCommandPreviewService _commandPreviewService;
+    private readonly IFileDialogService _fileDialogService;
     private string _ffmpegCommand;
     private string _inputFilePath = string.Empty;
     private string _outputDirectoryPath = string.Empty;
     private string _outputFileName = "output.mp4";
     private bool _showFullPath;
 
-    public MainWindowViewModel(IFfmpegCommandPreviewService commandPreviewService)
+    public MainWindowViewModel(
+        IFfmpegCommandPreviewService commandPreviewService,
+        IFileDialogService fileDialogService)
     {
         _commandPreviewService = commandPreviewService;
+        _fileDialogService = fileDialogService;
         ToggleShowFullPathCommand = new RelayCommand(ToggleShowFullPath);
+        SelectInputFileCommand = new RelayCommand(SelectInputFile);
+        SelectOutputDirectoryCommand = new RelayCommand(SelectOutputDirectory);
         _ffmpegCommand = BuildFfmpegCommand();
     }
 
@@ -31,6 +39,14 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public ICommand ToggleShowFullPathCommand { get; }
 
+    public ICommand SelectInputFileCommand { get; }
+
+    public ICommand SelectOutputDirectoryCommand { get; }
+
+    public string InputFileDisplayPath => FormatDisplayPath(InputFilePath);
+
+    public string OutputDirectoryDisplayPath => FormatDisplayPath(OutputDirectoryPath);
+
     public string InputFilePath
     {
         get => _inputFilePath;
@@ -38,6 +54,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _inputFilePath, value))
             {
+                OnPropertyChanged(nameof(InputFileDisplayPath));
                 RefreshFfmpegCommand();
             }
         }
@@ -50,6 +67,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _outputDirectoryPath, value))
             {
+                OnPropertyChanged(nameof(OutputDirectoryDisplayPath));
                 RefreshFfmpegCommand();
             }
         }
@@ -75,6 +93,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _showFullPath, value))
             {
                 OnPropertyChanged(nameof(ShowFullPathButtonText));
+                OnPropertyChanged(nameof(InputFileDisplayPath));
+                OnPropertyChanged(nameof(OutputDirectoryDisplayPath));
                 RefreshFfmpegCommand();
             }
         }
@@ -91,6 +111,26 @@ public sealed class MainWindowViewModel : ViewModelBase
         ShowFullPath = !ShowFullPath;
     }
 
+    private void SelectInputFile()
+    {
+        var selectedPath = _fileDialogService.SelectInputFile();
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+        {
+            InputFilePath = selectedPath;
+        }
+    }
+
+    private void SelectOutputDirectory()
+    {
+        var selectedPath = _fileDialogService.SelectOutputDirectory();
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+        {
+            OutputDirectoryPath = selectedPath;
+        }
+    }
+
     public void RefreshFfmpegCommand()
     {
         FfmpegCommand = BuildFfmpegCommand();
@@ -105,5 +145,18 @@ public sealed class MainWindowViewModel : ViewModelBase
             OutputFileName = OutputFileName,
             ShowFullPath = ShowFullPath
         });
+    }
+
+    private string FormatDisplayPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || ShowFullPath)
+        {
+            return path;
+        }
+
+        var trimmedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fileName = Path.GetFileName(trimmedPath);
+
+        return string.IsNullOrWhiteSpace(fileName) ? path : fileName;
     }
 }

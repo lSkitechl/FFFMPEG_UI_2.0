@@ -7,8 +7,8 @@ public sealed class FfmpegCommandPreviewService : IFfmpegCommandPreviewService
 {
     public string BuildPreview(FfmpegCommandDraft draft)
     {
-        var input = FormatPath(draft.InputFilePath, draft.ShowFullPath);
-        var output = FormatPath(BuildOutputPath(draft), draft.ShowFullPath);
+        var input = draft.InputFilePath;
+        var output = BuildOutputPath(draft);
 
         return $"ffmpeg -i {Quote(input)} {Quote(output)}";
     }
@@ -21,16 +21,6 @@ public sealed class FfmpegCommandPreviewService : IFfmpegCommandPreviewService
         }
 
         return Path.Combine(draft.OutputDirectoryPath, draft.OutputFileName);
-    }
-
-    private static string FormatPath(string path, bool showFullPath)
-    {
-        if (string.IsNullOrWhiteSpace(path) || showFullPath)
-        {
-            return path;
-        }
-
-        return Path.GetFileName(path);
     }
 
     private static string Quote(string value)
