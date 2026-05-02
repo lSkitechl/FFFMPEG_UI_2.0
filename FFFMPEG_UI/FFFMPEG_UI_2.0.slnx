@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="../FFMPEG.Application/FFMPEG.Application.csproj">
+    <BuildDependency Project="../FFMPEG.Core/FFMPEG.Core.csproj" />
+    <BuildDependency Project="../FFMPEG.Infrastructure/FFMPEG.Infrastructure.csproj" />
+  </Project>
+  <Project Path="../FFMPEG.Core/FFMPEG.Core.csproj" />
+  <Project Path="../FFMPEG.Infrastructure/FFMPEG.Infrastructure.csproj">
+    <BuildDependency Project="../FFMPEG.Core/FFMPEG.Core.csproj" />
+  </Project>
+  <Project Path="FFFMPEG.UI_2.0.csproj">
+    <BuildDependency Project="../FFMPEG.Application/FFMPEG.Application.csproj" />
+  </Project>
+</Solution>
