@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="{Binding Title}"
         Height="520"
-        MinHeight="630"
+        MinHeight="730"
         Width="880"
         MinWidth="760"
         Background="#F6F7F8">
@@ -107,19 +107,14 @@
         <!-- Codecs -->
         <GroupBox Grid.Row="1" Grid.Column="0" Header="Codec Selection">
             <UniformGrid Columns="2">
-                <ComboBox Style="{StaticResource FlatComboBoxStyle}" MaxWidth="200">
-                    <ComboBoxItem Content="Video Codec" IsSelected="True"/>
-                    <ComboBoxItem Content="h264"/>
-                    <ComboBoxItem Content="h265"/>
-                    <ComboBoxItem Content="AV1"/>
-                    <ComboBoxItem Content="VP9"/>
-                </ComboBox>
-                <ComboBox Style="{StaticResource FlatComboBoxStyle}" MaxWidth="200">
-                    <ComboBoxItem Content="Audio Codec" IsSelected="True"/>
-                    <ComboBoxItem Content="AAC"/>
-                    <ComboBoxItem Content="MP3"/>
-                    <ComboBoxItem Content="Opus"/>
-                </ComboBox>
+                <ComboBox Style="{StaticResource FlatComboBoxStyle}"
+                          MaxWidth="200"
+                          ItemsSource="{Binding VideoCodecOptions}"
+                          SelectedItem="{Binding SelectedVideoCodec, UpdateSourceTrigger=PropertyChanged}"/>
+                <ComboBox Style="{StaticResource FlatComboBoxStyle}"
+                          MaxWidth="200"
+                          ItemsSource="{Binding AudioCodecOptions}"
+                          SelectedItem="{Binding SelectedAudioCodec, UpdateSourceTrigger=PropertyChanged}"/>
             </UniformGrid>
         </GroupBox>
         <!-- Input -->
@@ -157,14 +152,31 @@
                         Style="{StaticResource FlatButtonStyle}"
                         HorizontalAlignment="Right"
                         MinWidth="300"
-                        Content="Execute Command"/>
+                        Content="Execute Command"
+                        Command="{Binding ExecuteFfmpegCommandCommand}"/>
 
                 <StackPanel>
-                    <Label
-                             Content="Final command"/>
-                    <TextBox 
-                             Text="{Binding FfmpegCommand, UpdateSourceTrigger=PropertyChanged}"
+                    <Label Content="Final command"/>
+                    <TextBox Text="{Binding FfmpegCommand, UpdateSourceTrigger=PropertyChanged}"
                              local:TextBoxHelper.Placeholder="Введите команду ffmpeg..."/>
+                    <ProgressBar Margin="4,8,4,4"
+                                 Height="8"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ExecutionProgress, Mode=OneWay}"/>
+                    <TextBlock Margin="4,0,4,0"
+                               Text="{Binding ExecutionProgressText}"/>
+                    <TextBlock Margin="4,4,4,0"
+                               Text="{Binding ExecutionStatus}"/>
+                    <TextBox MinHeight="50"
+                             Margin="4"
+                             VerticalContentAlignment="Top"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             Text="{Binding ExecutionOutput, Mode=OneWay}"
+                             local:TextBoxHelper.Placeholder="ffmpeg output and errors"/>
                 </StackPanel>
             </DockPanel>
         </GroupBox>

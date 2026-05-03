@@ -8,5 +8,9 @@ public sealed class FfmpegCommandDraft
 
     public string OutputFileName { get; init; } = "output.mp4";
 
+    public string VideoCodec { get; init; } = string.Empty;
+
+    public string AudioCodec { get; init; } = string.Empty;
+
     public bool ShowFullPath { get; init; }
 }

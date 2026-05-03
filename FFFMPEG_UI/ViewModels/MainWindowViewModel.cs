@@ -9,23 +9,38 @@ namespace FFFMPEG_UI_2._0.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
+    private const string VideoCodecPlaceholder = "Video Codec";
+    private const string AudioCodecPlaceholder = "Audio Codec";
+
     private readonly IFfmpegCommandPreviewService _commandPreviewService;
+    private readonly IFfmpegProcessRunner _processRunner;
     private readonly IFileDialogService _fileDialogService;
     private string _ffmpegCommand;
+    private string _executionStatus = "Ready";
+    private string _executionOutput = string.Empty;
     private string _inputFilePath = string.Empty;
     private string _outputDirectoryPath = string.Empty;
     private string _outputFileName = "output.mp4";
+    private string _selectedVideoCodec = VideoCodecPlaceholder;
+    private string _selectedAudioCodec = AudioCodecPlaceholder;
+    private int _executionProgress;
+    private bool _isExecuting;
     private bool _showFullPath;
 
     public MainWindowViewModel(
         IFfmpegCommandPreviewService commandPreviewService,
+        IFfmpegProcessRunner processRunner,
         IFileDialogService fileDialogService)
     {
         _commandPreviewService = commandPreviewService;
+        _processRunner = processRunner;
         _fileDialogService = fileDialogService;
         ToggleShowFullPathCommand = new RelayCommand(ToggleShowFullPath);
         SelectInputFileCommand = new RelayCommand(SelectInputFile);
         SelectOutputDirectoryCommand = new RelayCommand(SelectOutputDirectory);
+        ExecuteFfmpegCommandCommand = new AsyncRelayCommand(
+            ExecuteFfmpegCommandAsync,
+            () => !IsExecuting && !string.IsNullOrWhiteSpace(FfmpegCommand));
         _ffmpegCommand = BuildFfmpegCommand();
     }
 
@@ -37,15 +52,60 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string OutputPathButtonText { get; } = "Output path";
 
+    public IReadOnlyList<string> VideoCodecOptions { get; } =
+    [
+        VideoCodecPlaceholder,
+        "h264",
+        "h265",
+        "AV1",
+        "VP9",
+        "vvenc"
+    ];
+
+    public IReadOnlyList<string> AudioCodecOptions { get; } =
+    [
+        AudioCodecPlaceholder,
+        "AAC",
+        "libfdk_aac",
+        "MP3",
+        "Opus"
+    ];
+
     public ICommand ToggleShowFullPathCommand { get; }
 
     public ICommand SelectInputFileCommand { get; }
 
     public ICommand SelectOutputDirectoryCommand { get; }
 
+    public ICommand ExecuteFfmpegCommandCommand { get; }
+
     public string InputFileDisplayPath => FormatDisplayPath(InputFilePath);
 
     public string OutputDirectoryDisplayPath => FormatDisplayPath(OutputDirectoryPath);
+
+    public string SelectedVideoCodec
+    {
+        get => _selectedVideoCodec;
+        set
+        {
+            if (SetProperty(ref _selectedVideoCodec, value))
+            {
+                RefreshFfmpegCommand();
+            }
+        }
+    }
+
+    public string SelectedAudioCodec
+    {
+        get => _selectedAudioCodec;
+        set
+        {
+            if (SetProperty(ref _selectedAudioCodec, value))
+            {
+                RefreshFfmpegCommand();
+            }
+        }
+    }
 
     public string InputFilePath
     {
@@ -103,8 +163,52 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string FfmpegCommand
     {
         get => _ffmpegCommand;
-        set => SetProperty(ref _ffmpegCommand, value);
+        set
+        {
+            if (SetProperty(ref _ffmpegCommand, value))
+            {
+                RaiseExecuteCommandCanExecuteChanged();
+            }
+        }
     }
+
+    public bool IsExecuting
+    {
+        get => _isExecuting;
+        private set
+        {
+            if (SetProperty(ref _isExecuting, value))
+            {
+                RaiseExecuteCommandCanExecuteChanged();
+            }
+        }
+    }
+
+    public string ExecutionStatus
+    {
+        get => _executionStatus;
+        private set => SetProperty(ref _executionStatus, value);
+    }
+
+    public string ExecutionOutput
+    {
+        get => _executionOutput;
+        private set => SetProperty(ref _executionOutput, value);
+    }
+
+    public int ExecutionProgress
+    {
+        get => _executionProgress;
+        private set
+        {
+            if (SetProperty(ref _executionProgress, value))
+            {
+                OnPropertyChanged(nameof(ExecutionProgressText));
+            }
+        }
+    }
+
+    public string ExecutionProgressText => $"Progress: {ExecutionProgress}%";
 
     private void ToggleShowFullPath()
     {
@@ -131,6 +235,35 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private async Task ExecuteFfmpegCommandAsync()
+    {
+        IsExecuting = true;
+        ExecutionStatus = "Executing ffmpeg...";
+        ExecutionOutput = string.Empty;
+        ExecutionProgress = 0;
+
+        try
+        {
+            var progress = new Progress<int>(value => ExecutionProgress = value);
+            var result = await _processRunner.RunAsync(FfmpegCommand, progress);
+
+            ExecutionOutput = BuildExecutionOutput(result);
+            ExecutionStatus = result.ExitCode == 0
+                ? "Command completed successfully."
+                : $"Command failed. Exit code: {result.ExitCode}.";
+            ExecutionProgress = result.ExitCode == 0 ? 100 : ExecutionProgress;
+        }
+        catch (Exception ex)
+        {
+            ExecutionStatus = "Command failed before ffmpeg finished.";
+            ExecutionOutput = ex.Message;
+        }
+        finally
+        {
+            IsExecuting = false;
+        }
+    }
+
     public void RefreshFfmpegCommand()
     {
         FfmpegCommand = BuildFfmpegCommand();
@@ -143,8 +276,55 @@ public sealed class MainWindowViewModel : ViewModelBase
             InputFilePath = InputFilePath,
             OutputDirectoryPath = OutputDirectoryPath,
             OutputFileName = OutputFileName,
+            VideoCodec = MapVideoCodec(SelectedVideoCodec),
+            AudioCodec = MapAudioCodec(SelectedAudioCodec),
             ShowFullPath = ShowFullPath
         });
+    }
+
+    private static string MapVideoCodec(string selectedCodec)
+    {
+        return selectedCodec switch
+        {
+            "h264" => "libx264",
+            "h265" => "libx265",
+            "AV1" => "libaom-av1",
+            "VP9" => "libvpx-vp9",
+            "vvenc" => "libvvenc",
+            _ => string.Empty
+        };
+    }
+
+    private static string MapAudioCodec(string selectedCodec)
+    {
+        return selectedCodec switch
+        {
+            "AAC" => "aac",
+            "libfdk_aac" => "libfdk_aac",
+            "MP3" => "libmp3lame",
+            "Opus" => "libopus",
+            _ => string.Empty
+        };
+    }
+
+    private static string BuildExecutionOutput(ProcessRunResult result)
+    {
+        var output = string.Join(
+            Environment.NewLine + Environment.NewLine,
+            new[] { result.StandardError, result.StandardOutput }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(output)
+            ? $"ffmpeg finished with exit code {result.ExitCode}."
+            : output;
+    }
+
+    private void RaiseExecuteCommandCanExecuteChanged()
+    {
+        if (ExecuteFfmpegCommandCommand is AsyncRelayCommand command)
+        {
+            command.RaiseCanExecuteChanged();
+        }
     }
 
     private string FormatDisplayPath(string path)
