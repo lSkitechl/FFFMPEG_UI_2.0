@@ -26,6 +26,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _selectedAudioCodec = AudioCodecPlaceholder;
     private int _executionProgress;
     private bool _isExecuting;
+    private bool _isCommandEditorExpanded;
     private bool _isRefreshingCommandFromControls;
     private bool _isSyncingControlsFromCommand;
     private bool _showFullPath;
@@ -41,6 +42,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         ToggleShowFullPathCommand = new RelayCommand(ToggleShowFullPath);
         SelectInputFileCommand = new RelayCommand(SelectInputFile);
         SelectOutputDirectoryCommand = new RelayCommand(SelectOutputDirectory);
+        ToggleCommandEditorCommand = new RelayCommand(ToggleCommandEditor);
         ExecuteFfmpegCommandCommand = new AsyncRelayCommand(
             ExecuteFfmpegCommandAsync,
             () => !IsExecuting && !string.IsNullOrWhiteSpace(FfmpegCommand));
@@ -80,6 +82,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ICommand SelectInputFileCommand { get; }
 
     public ICommand SelectOutputDirectoryCommand { get; }
+
+    public ICommand ToggleCommandEditorCommand { get; }
 
     public ICommand ExecuteFfmpegCommandCommand { get; }
 
@@ -219,9 +223,28 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ExecutionProgressText => $"Progress: {ExecutionProgress}%";
 
+    public bool IsCommandEditorExpanded
+    {
+        get => _isCommandEditorExpanded;
+        private set
+        {
+            if (SetProperty(ref _isCommandEditorExpanded, value))
+            {
+                OnPropertyChanged(nameof(CommandEditorToggleButtonText));
+            }
+        }
+    }
+
+    public string CommandEditorToggleButtonText => IsCommandEditorExpanded ? "Collapse" : "Expand";
+
     private void ToggleShowFullPath()
     {
         ShowFullPath = !ShowFullPath;
+    }
+
+    private void ToggleCommandEditor()
+    {
+        IsCommandEditorExpanded = !IsCommandEditorExpanded;
     }
 
     private void SelectInputFile()
@@ -246,6 +269,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task ExecuteFfmpegCommandAsync()
     {
+        IsCommandEditorExpanded = false;
         IsExecuting = true;
         ExecutionStatus = "Executing ffmpeg...";
         ExecutionOutput = string.Empty;

@@ -87,14 +87,14 @@
             <ColumnDefinition Width="3*"/>
             <ColumnDefinition Width="2*"/>
         </Grid.ColumnDefinitions>
-        <!-- Settings -->
+
         <GroupBox Grid.Row="0" Grid.Column="0" Header="Settings">
             <Button HorizontalAlignment="Stretch"
                     Style="{StaticResource FlatButtonStyle}"
                     Content="{Binding ShowFullPathButtonText}"
                     Command="{Binding ToggleShowFullPathCommand}"/>
         </GroupBox>
-        <!-- Scripts -->
+
         <GroupBox Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Header="Script Execution">
             <StackPanel>
                 <ComboBox Style="{StaticResource FlatComboBoxStyle}">
@@ -104,7 +104,7 @@
                         Style="{StaticResource FlatButtonStyle}"/>
             </StackPanel>
         </GroupBox>
-        <!-- Codecs -->
+
         <GroupBox Grid.Row="1" Grid.Column="0" Header="Codec Selection">
             <UniformGrid Columns="2">
                 <ComboBox Style="{StaticResource FlatComboBoxStyle}"
@@ -117,7 +117,7 @@
                           SelectedItem="{Binding SelectedAudioCodec, UpdateSourceTrigger=PropertyChanged}"/>
             </UniformGrid>
         </GroupBox>
-        <!-- Input -->
+
         <GroupBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Header="Input">
             <DockPanel LastChildFill="True">
                 <Button DockPanel.Dock="Left"
@@ -126,10 +126,11 @@
                         Content="{Binding InputFileButtonText}"
                         Command="{Binding SelectInputFileCommand}"/>
                 <TextBox Text="{Binding InputFileDisplayPath, Mode=OneWay}"
-                         local:TextBoxHelper.Placeholder="Input file path" IsReadOnly="True"/>
+                         local:TextBoxHelper.Placeholder="Input file path"
+                         IsReadOnly="True"/>
             </DockPanel>
         </GroupBox>
-        <!-- Output -->
+
         <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Header="Output">
             <DockPanel LastChildFill="True">
                 <Button DockPanel.Dock="Left"
@@ -138,14 +139,15 @@
                         Content="{Binding OutputPathButtonText}"
                         Command="{Binding SelectOutputDirectoryCommand}"/>
                 <TextBox DockPanel.Dock="Left"
-                         Width="280" IsReadOnly="True"
+                         Width="280"
+                         IsReadOnly="True"
                          Text="{Binding OutputDirectoryDisplayPath, Mode=OneWay}"
                          local:TextBoxHelper.Placeholder="Output directory path"/>
                 <TextBox Text="{Binding OutputFileName, UpdateSourceTrigger=PropertyChanged}"
                          local:TextBoxHelper.Placeholder="Output file name"/>
             </DockPanel>
         </GroupBox>
-        <!-- Commands -->
+
         <GroupBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Header="Final Execution">
             <DockPanel LastChildFill="True">
                 <Button DockPanel.Dock="Bottom"
@@ -156,27 +158,67 @@
                         Command="{Binding ExecuteFfmpegCommandCommand}"/>
 
                 <StackPanel>
-                    <Label Content="Final command"/>
+                    <DockPanel LastChildFill="False">
+                        <Label DockPanel.Dock="Left" Content="Final command"/>
+                        <Button DockPanel.Dock="Right"
+                                MinHeight="28"
+                                MinWidth="92"
+                                Padding="10,2"
+                                Content="{Binding CommandEditorToggleButtonText}"
+                                Command="{Binding ToggleCommandEditorCommand}"/>
+                    </DockPanel>
+
                     <TextBox Text="{Binding FfmpegCommand, UpdateSourceTrigger=PropertyChanged}"
-                             local:TextBoxHelper.Placeholder="Введите команду ffmpeg..."/>
-                    <ProgressBar Margin="4,8,4,4"
-                                 Height="8"
-                                 Minimum="0"
-                                 Maximum="100"
-                                 Value="{Binding ExecutionProgress, Mode=OneWay}"/>
-                    <TextBlock Margin="4,0,4,0"
-                               Text="{Binding ExecutionProgressText}"/>
-                    <TextBlock Margin="4,4,4,0"
-                               Text="{Binding ExecutionStatus}"/>
-                    <TextBox MinHeight="50"
-                             Margin="4"
-                             VerticalContentAlignment="Top"
-                             IsReadOnly="True"
-                             TextWrapping="Wrap"
+                             IsReadOnly="{Binding IsExecuting, Mode=OneWay}"
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
-                             Text="{Binding ExecutionOutput, Mode=OneWay}"
-                             local:TextBoxHelper.Placeholder="ffmpeg output and errors"/>
+                             local:TextBoxHelper.Placeholder="Введите команду ffmpeg...">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                <Setter Property="Height" Value="40"/>
+                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCommandEditorExpanded}" Value="True">
+                                        <Setter Property="Height" Value="280"/>
+                                        <Setter Property="TextWrapping" Value="Wrap"/>
+                                        <Setter Property="VerticalContentAlignment" Value="Top"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCommandEditorExpanded}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <ProgressBar Margin="4,8,4,4"
+                                     Height="8"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="{Binding ExecutionProgress, Mode=OneWay}"/>
+                        <TextBlock Margin="4,0,4,0"
+                                   Text="{Binding ExecutionProgressText}"/>
+                        <TextBlock Margin="4,4,4,0"
+                                   Text="{Binding ExecutionStatus}"/>
+                        <TextBox MinHeight="20"
+                                 Margin="4"
+                                 VerticalContentAlignment="Top"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Text="{Binding ExecutionOutput, Mode=OneWay}"
+                                 local:TextBoxHelper.Placeholder="ffmpeg output and errors"/>
+                    </StackPanel>
                 </StackPanel>
             </DockPanel>
         </GroupBox>
