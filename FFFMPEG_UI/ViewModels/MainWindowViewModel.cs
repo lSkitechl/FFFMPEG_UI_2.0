@@ -15,6 +15,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IFfmpegCommandPreviewService _commandPreviewService;
     private readonly IFfmpegProcessRunner _processRunner;
     private readonly IFileDialogService _fileDialogService;
+    private FfmpegCommandDraft _lastCommandDraft;
     private string _ffmpegCommand;
     private string _executionStatus = "Ready";
     private string _executionOutput = string.Empty;
@@ -25,6 +26,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _selectedAudioCodec = AudioCodecPlaceholder;
     private int _executionProgress;
     private bool _isExecuting;
+    private bool _isRefreshingCommandFromControls;
+    private bool _isSyncingControlsFromCommand;
     private bool _showFullPath;
 
     public MainWindowViewModel(
@@ -41,7 +44,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         ExecuteFfmpegCommandCommand = new AsyncRelayCommand(
             ExecuteFfmpegCommandAsync,
             () => !IsExecuting && !string.IsNullOrWhiteSpace(FfmpegCommand));
-        _ffmpegCommand = BuildFfmpegCommand();
+        _lastCommandDraft = BuildCommandDraft();
+        _ffmpegCommand = _commandPreviewService.BuildPreview(_lastCommandDraft);
     }
 
     public string Title { get; } = "FFFMPEG UI";
@@ -59,7 +63,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         "h265",
         "AV1",
         "VP9",
-        "vvenc"
+        "VVENC"
     ];
 
     public IReadOnlyList<string> AudioCodecOptions { get; } =
@@ -90,7 +94,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedVideoCodec, value))
             {
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -102,7 +106,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedAudioCodec, value))
             {
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -115,7 +119,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _inputFilePath, value))
             {
                 OnPropertyChanged(nameof(InputFileDisplayPath));
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -128,7 +132,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _outputDirectoryPath, value))
             {
                 OnPropertyChanged(nameof(OutputDirectoryDisplayPath));
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -140,7 +144,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _outputFileName, value))
             {
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -155,7 +159,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ShowFullPathButtonText));
                 OnPropertyChanged(nameof(InputFileDisplayPath));
                 OnPropertyChanged(nameof(OutputDirectoryDisplayPath));
-                RefreshFfmpegCommand();
+                RefreshFfmpegCommandFromControlChange();
             }
         }
     }
@@ -168,6 +172,11 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _ffmpegCommand, value))
             {
                 RaiseExecuteCommandCanExecuteChanged();
+
+                if (!_isRefreshingCommandFromControls)
+                {
+                    SyncControlsFromCommand();
+                }
             }
         }
     }
@@ -266,12 +275,32 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public void RefreshFfmpegCommand()
     {
-        FfmpegCommand = BuildFfmpegCommand();
+        var nextDraft = BuildCommandDraft();
+
+        _isRefreshingCommandFromControls = true;
+
+        try
+        {
+            FfmpegCommand = _commandPreviewService.UpdatePreview(
+                FfmpegCommand,
+                _lastCommandDraft,
+                nextDraft);
+            _lastCommandDraft = nextDraft;
+        }
+        finally
+        {
+            _isRefreshingCommandFromControls = false;
+        }
     }
 
     public string BuildFfmpegCommand()
     {
-        return _commandPreviewService.BuildPreview(new FfmpegCommandDraft
+        return _commandPreviewService.BuildPreview(BuildCommandDraft());
+    }
+
+    private FfmpegCommandDraft BuildCommandDraft()
+    {
+        return new FfmpegCommandDraft
         {
             InputFilePath = InputFilePath,
             OutputDirectoryPath = OutputDirectoryPath,
@@ -279,7 +308,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             VideoCodec = MapVideoCodec(SelectedVideoCodec),
             AudioCodec = MapAudioCodec(SelectedAudioCodec),
             ShowFullPath = ShowFullPath
-        });
+        };
     }
 
     private static string MapVideoCodec(string selectedCodec)
@@ -290,7 +319,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             "h265" => "libx265",
             "AV1" => "libaom-av1",
             "VP9" => "libvpx-vp9",
-            "vvenc" => "libvvenc",
+            "VVENC" => "libvvenc",
             _ => string.Empty
         };
     }
@@ -304,6 +333,78 @@ public sealed class MainWindowViewModel : ViewModelBase
             "MP3" => "libmp3lame",
             "Opus" => "libopus",
             _ => string.Empty
+        };
+    }
+
+    private void RefreshFfmpegCommandFromControlChange()
+    {
+        if (!_isSyncingControlsFromCommand)
+        {
+            RefreshFfmpegCommand();
+        }
+    }
+
+    private void SyncControlsFromCommand()
+    {
+        _isSyncingControlsFromCommand = true;
+
+        try
+        {
+            var managedValues = _commandPreviewService.ReadManagedValues(FfmpegCommand);
+
+            SyncPathValues(managedValues);
+            SyncCodecValues(managedValues);
+            _lastCommandDraft = BuildCommandDraft();
+        }
+        finally
+        {
+            _isSyncingControlsFromCommand = false;
+        }
+    }
+
+    private void SyncPathValues(FfmpegCommandManagedValues managedValues)
+    {
+        InputFilePath = managedValues.InputFilePath ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(managedValues.OutputPath))
+        {
+            OutputDirectoryPath = string.Empty;
+            OutputFileName = string.Empty;
+            return;
+        }
+
+        OutputDirectoryPath = Path.GetDirectoryName(managedValues.OutputPath) ?? string.Empty;
+        OutputFileName = Path.GetFileName(managedValues.OutputPath);
+    }
+
+    private void SyncCodecValues(FfmpegCommandManagedValues managedValues)
+    {
+        SelectedVideoCodec = MapVideoCodecToSelection(managedValues.VideoCodec);
+        SelectedAudioCodec = MapAudioCodecToSelection(managedValues.AudioCodec);
+    }
+
+    private static string MapVideoCodecToSelection(string? codec)
+    {
+        return codec switch
+        {
+            "libx264" => "h264",
+            "libx265" => "h265",
+            "libaom-av1" => "AV1",
+            "libvpx-vp9" => "VP9",
+            "libvvenc" => "VVENC",
+            _ => VideoCodecPlaceholder
+        };
+    }
+
+    private static string MapAudioCodecToSelection(string? codec)
+    {
+        return codec switch
+        {
+            "aac" => "AAC",
+            "libfdk_aac" => "libfdk_aac",
+            "libmp3lame" => "MP3",
+            "libopus" => "Opus",
+            _ => AudioCodecPlaceholder
         };
     }
 
